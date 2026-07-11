@@ -1,0 +1,9 @@
+# 敏感配置文件（包含密码、密钥、服务器地址等）
+config.lua
+
+# 系统文件
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
