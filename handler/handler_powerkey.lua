@@ -88,7 +88,7 @@ local options = {
                     log.info("handler_powerkey", "恢复来电动作配置项", old_call_in_action)
                 end)
                 tts("正在拨打")
-                sys.timerStart(cc.dial, 3000, CALL_NUMBER)
+                sys.timerStart(makeCall, 3000, CALL_NUMBER, "这是一条电话通知")
             else
                 tts("无来电号码")
             end

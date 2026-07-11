@@ -11,6 +11,11 @@ local function isElementInTable(myTable, target)
     return false
 end
 
+local function trim(str)
+    str = type(str) == "string" and str or ""
+    return (str:gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
 --- 判断号码是否符合要求
 -- @param number (string) 待判断的号码
 -- @return (boolean) 如果号码符合条件则返回 true，否则返回 false
@@ -18,12 +23,8 @@ local function checkNumber(number)
     if number == nil or type(number) ~= "string" then
         return false
     end
-    -- 号码长度必须大于等于 5 位
-    if number:len() < 5 then
-        return false
-    end
-
-    return true
+    number = trim(number)
+    return number:match("^%+?%d%d%d%d%d+%d*$") ~= nil
 end
 
 --- 判断白名单号码是否符合触发短信控制的条件
@@ -84,8 +85,8 @@ local function smsContentMatcher(sender_number, sms_content)
         log.info("handler_sms.smsContentMatcher", "匹配失败: <查询所有呼转状态>")
     end
 
-    -- 如果短信内容是 `CCFC,{ccfc_number}`, 则设置无条件呼转, 当 ccfc_number=="0" 时，关闭所有呼转
-    local ccfc_number = sms_content:match("^CCFC,(%d+)$")
+    -- 如果短信内容是 `CCFC,{ccfc_number}`, 则设置无条件呼转；当 ccfc_number == "0" 时关闭所有呼转
+    local ccfc_number = trim(sms_content:match("^CCFC%s*,%s*(%+?%d+)%s*$"))
     -- 判断号码
     if checkNumber(ccfc_number) or ccfc_number == "0" then
         local is_disable = ccfc_number == "0"
@@ -111,14 +112,13 @@ local function smsContentMatcher(sender_number, sms_content)
         log.info("handler_sms.smsContentMatcher", "匹配失败: <关闭/设置呼转>")
     end
 
-    -- 如果短信内容是 `CALL,{called_number}`, 则拨打电话
-    local called_number = sms_content:match("^CALL,(%d+)$")
+    -- 如果短信内容是 `CALL,{called_number}`, 则拨打电话并播放默认 TTS
+    local called_number = trim(sms_content:match("^CALL%s*,%s*(%+?%d+)%s*$"))
     -- 判断号码
     if checkNumber(called_number) then
         log.info("handler_sms.smsContentMatcher", "匹配成功: <拨打电话>", called_number)
 
-        -- 拨打电话
-        sys.taskInit(cc.dial, called_number)
+        makeCall(called_number, "这是一条电话通知")
 
         -- 发送通知
         util_notify.add({ sender_number .. " 的短信触发了 <拨打电话>", "", "被叫人号码: " .. called_number, "#CONTROL" })
@@ -129,7 +129,9 @@ local function smsContentMatcher(sender_number, sms_content)
     end
 
     -- 如果短信内容是 `SMS,{receiver_number},{sms_content_to_be_sent}`, 则发送短信
-    local receiver_number, sms_content_to_be_sent = sms_content:match("^SMS,(%d+),(.*)$")
+    local receiver_number, sms_content_to_be_sent = sms_content:match("^SMS%s*,%s*(%+?%d+)%s*,%s*(.*)$")
+    receiver_number = trim(receiver_number)
+    sms_content_to_be_sent = trim(sms_content_to_be_sent)
     -- 判断号码, 短信长度
     if checkNumber(receiver_number) and type(sms_content_to_be_sent) == "string" and sms_content_to_be_sent:len() > 0 then
         -- 防止循环发送短信
